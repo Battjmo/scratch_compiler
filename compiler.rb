@@ -35,6 +35,8 @@ class Tokenizer
         raise RuntimeError.new(
             "Couldn't match token on #{@code.inspect}")
     end
+
+#END OF CLASS
 end
 
 Token = Struct.new(:type, :value)
@@ -130,13 +132,43 @@ class Parser
 #End of class
 end 
 
+class Generator 
+    def generate(node)
+        case node
+        when DefNode 
+            "function %s(%s) {return %s};" % [
+            node.name,
+            node.arg_names.join(","),
+            generate(node.body)
+            ]
+        when CallNode 
+            "%s(%s)" % [
+                node.name,
+                node.arg_exprs.map { |expr| generate(expr)}.join(",")
+            ]
+        when VarRefNode
+            node.value
+        when IntegerNode
+            node.value
+        else 
+            raise RuntimeError.new("Unexpected node type: #{node.class}")
+        end 
+    end
+    
+#END OF CLASS
+end 
+
 DefNode = Struct.new(:name, :arg_names, :body)
 IntegerNode = Struct.new(:value)
 CallNode = Struct.new(:name, :arg_exprs)
 VarRefNode = Struct.new(:value)
 
 tokens = Tokenizer.new(File.read("test.src")).tokenize 
-puts tokens.map(&:inspect).join("\n")
 tree = Parser.new(tokens).parse
 
-p tree
+
+generated = Generator.new.generate(tree)
+
+RUNTIME = "function add(x, y) { return x + y };"
+TEST = "console.log(f(5,7));"
+puts [RUNTIME, generated, TEST].join("\n")
